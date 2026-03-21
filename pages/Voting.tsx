@@ -193,9 +193,9 @@ const Voting: React.FC = () => {
     if (typeof window !== 'undefined' && (window as any).openKkiapayWidget) {
       (window as any).openKkiapayWidget({
         amount,
-        key: "c95afa00ae6411efb1b5cb2c92e1fa7d", // À remplacer par votre clé de production
+        key: "260b3f463adaac920f28acc20b34539ec90a9bec", // À remplacer par votre clé de production
         position: "center",
-        sandbox: true, // Mettre à false pour la production
+        sandbox: false, // Mettre à false pour la production
         callback: `${window.location.origin}/#/payment-callback?payment=${paymentId}`,
         theme: "orange",
         data: paymentId,
