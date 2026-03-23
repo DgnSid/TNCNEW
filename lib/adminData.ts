@@ -49,6 +49,12 @@ const DEFAULT_SITE_CONFIG: SiteConfig = {
   winnersVoteEndDate: '',
 };
 
+let cachedSiteConfig: SiteConfig | null = null;
+let cachedBroadcasts: Broadcast[] | null = null;
+let cachedPartners: Partner[] | null = null;
+let cachedVotingTeams: VotingTeam[] | null = null;
+let cachedLivePhases: LivePhase[] | null = null;
+
 const toLocalDateTimeInput = (isoOrLocal: string | null | undefined): string => {
   if (!isoOrLocal) return '';
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(isoOrLocal)) return isoOrLocal;
@@ -78,15 +84,17 @@ export const getSiteConfig = async (): Promise<SiteConfig> => {
 
   if (error || !data) {
     logError('getSiteConfig', error);
-    return DEFAULT_SITE_CONFIG;
+    return cachedSiteConfig ?? DEFAULT_SITE_CONFIG;
   }
 
-  return {
+  const mapped = {
     hiddenPages: data.hidden_pages || [],
     isReorganized: Boolean(data.is_reorganized),
     publicVoteEndDate: toLocalDateTimeInput(data.public_vote_end_date),
     winnersVoteEndDate: toLocalDateTimeInput(data.winners_vote_end_date),
   };
+  cachedSiteConfig = mapped;
+  return mapped;
 };
 
 export const saveSiteConfig = async (config: SiteConfig): Promise<boolean> => {
@@ -131,9 +139,11 @@ export const getBroadcasts = async (): Promise<Broadcast[]> => {
 
   if (error || !data) {
     logError('getBroadcasts', error);
-    return [];
+    return cachedBroadcasts ?? [];
   }
-  return data.map(mapBroadcast);
+  const mapped = data.map(mapBroadcast);
+  cachedBroadcasts = mapped;
+  return mapped;
 };
 
 export const addBroadcast = async (payload: Omit<Broadcast, 'id' | 'timestamp'>): Promise<boolean> => {
@@ -182,9 +192,11 @@ export const getPartners = async (): Promise<Partner[]> => {
 
   if (error || !data) {
     logError('getPartners', error);
-    return [];
+    return cachedPartners ?? [];
   }
-  return data.map(mapPartner);
+  const mapped = data.map(mapPartner);
+  cachedPartners = mapped;
+  return mapped;
 };
 
 export const addPartner = async (payload: Omit<Partner, 'id'>): Promise<boolean> => {
@@ -230,9 +242,11 @@ export const getVotingTeams = async (): Promise<VotingTeam[]> => {
 
   if (error || !data) {
     logError('getVotingTeams', error);
-    return [];
+    return cachedVotingTeams ?? [];
   }
-  return data.map(mapVotingTeam);
+  const mapped = data.map(mapVotingTeam);
+  cachedVotingTeams = mapped;
+  return mapped;
 };
 
 export const addVotingTeam = async (payload: Omit<VotingTeam, 'id'>): Promise<boolean> => {
@@ -304,9 +318,11 @@ export const getLivePhases = async (): Promise<LivePhase[]> => {
 
   if (error || !data) {
     logError('getLivePhases', error);
-    return [];
+    return cachedLivePhases ?? [];
   }
-  return data.map(mapLivePhase);
+  const mapped = data.map(mapLivePhase);
+  cachedLivePhases = mapped;
+  return mapped;
 };
 
 export const addLivePhase = async (payload: Omit<LivePhase, 'id'>): Promise<boolean> => {

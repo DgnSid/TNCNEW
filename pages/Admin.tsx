@@ -19,6 +19,7 @@ import {
   getVotingTeams,
   saveSiteConfig,
 } from '../lib/adminData';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 interface Broadcast {
   id: string;
@@ -54,6 +55,13 @@ interface LivePhase {
   image: string;
   status: 'completed' | 'active' | 'upcoming';
 }
+
+const STORAGE_BUCKET = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'tnc-media';
+const IMAGE_FOLDERS = {
+  partners: 'partners',
+  voting: 'voting-teams',
+  live: 'live-phases',
+} as const;
 
 const Admin: React.FC = () => {
   const [activeAdminTab, setActiveAdminTab] = useState<'colis' | 'partners' | 'votes' | 'stats' | 'live' | 'site'>('colis');
@@ -93,6 +101,14 @@ const Admin: React.FC = () => {
   const [lpStatus, setLpStatus] = useState<'completed' | 'active' | 'upcoming'>('upcoming');
   const [lpImage, setLpImage] = useState<string | null>(null);
 
+  const [pLogoPreview, setPLogoPreview] = useState<string | null>(null);
+  const [vtImagePreview, setVtImagePreview] = useState<string | null>(null);
+  const [lpImagePreview, setLpImagePreview] = useState<string | null>(null);
+
+  const [isUploadingPartner, setIsUploadingPartner] = useState(false);
+  const [isUploadingVoting, setIsUploadingVoting] = useState(false);
+  const [isUploadingLive, setIsUploadingLive] = useState(false);
+
   const loadAdminData = async () => {
     const config = await getSiteConfig();
     setHiddenPages(config.hiddenPages || ['/vote', '/vote-gagnants']);
@@ -127,13 +143,66 @@ const Admin: React.FC = () => {
     if (!ok) alert("Échec d'enregistrement Supabase. Vérifie les clés env et les policies RLS.");
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => setter(ev.target?.result as string);
-      reader.readAsDataURL(file);
+  const getSafeFileExt = (file: File) => {
+    const nameExt = file.name.split('.').pop()?.toLowerCase();
+    if (nameExt && /^[a-z0-9]+$/.test(nameExt)) return nameExt;
+    if (file.type.startsWith('image/')) return file.type.split('/')[1];
+    return 'jpg';
+  };
+
+  const uploadImageToStorage = async (file: File, folder: string): Promise<string | null> => {
+    if (!isSupabaseConfigured || !supabase) {
+      alert("Supabase n'est pas configuré. Vérifie VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.");
+      return null;
     }
+
+    const ext = getSafeFileExt(file);
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+    const filePath = `${folder}/${fileName}`;
+
+    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type || 'image/jpeg',
+    });
+
+    if (error) {
+      console.error('[storage:upload]', error);
+      alert(`Upload image échoué: ${error.message}`);
+      return null;
+    }
+
+    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const handleImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    opts: {
+      folder: string;
+      setValue: (val: string | null) => void;
+      setPreview: (val: string | null) => void;
+      setUploading: (val: boolean) => void;
+    }
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const previewUrl = URL.createObjectURL(file);
+    opts.setPreview(previewUrl);
+    opts.setUploading(true);
+
+    const url = await uploadImageToStorage(file, opts.folder);
+
+    opts.setUploading(false);
+    if (url) {
+      opts.setValue(url);
+      opts.setPreview(url);
+    } else {
+      opts.setValue(null);
+      opts.setPreview(null);
+    }
+    URL.revokeObjectURL(previewUrl);
   };
 
   const handleSendColis = async () => {
@@ -165,7 +234,7 @@ const Admin: React.FC = () => {
     }
     const refreshed = await getPartners();
     setPartners(refreshed as any);
-    setPName(''); setPLogo(null);
+    setPName(''); setPLogo(null); setPLogoPreview(null);
     alert("Partenaire ajouté avec succès !");
   };
 
@@ -178,7 +247,7 @@ const Admin: React.FC = () => {
     }
     const refreshed = await getVotingTeams();
     setVotingTeams(refreshed as any);
-    setVtName(''); setVtMembers(''); setVtImage(null);
+    setVtName(''); setVtMembers(''); setVtImage(null); setVtImagePreview(null);
     alert(`Binôme ajouté au ${vtType === 'public' ? 'Vote de Préselection' : 'Vote des Gagnants'} !`);
   };
 
@@ -191,7 +260,7 @@ const Admin: React.FC = () => {
     }
     const refreshed = await getLivePhases();
     setLivePhases(refreshed as any);
-    setLpTitle(''); setLpDesc(''); setLpImage(null);
+    setLpTitle(''); setLpDesc(''); setLpImage(null); setLpImagePreview(null);
     alert("Phase ajoutée au direct !");
   };
 
@@ -266,10 +335,10 @@ const Admin: React.FC = () => {
                     <option value="media" className="bg-nova-black">Média</option>
                   </select>
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-white/10 rounded-2xl cursor-pointer hover:bg-white/5 transition-all overflow-hidden">
-                    {pLogo ? <img src={pLogo} className="h-24 w-auto object-contain" /> : <div className="text-center"><ImageIcon className="mx-auto mb-2 text-gray-500" /> <span className="text-[10px] uppercase font-black text-gray-500">Logo du partenaire</span></div>}
-                    <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setPLogo)} />
+                    {(pLogoPreview || pLogo) ? <img src={pLogoPreview || pLogo} className="h-24 w-auto object-contain" /> : <div className="text-center"><ImageIcon className="mx-auto mb-2 text-gray-500" /> <span className="text-[10px] uppercase font-black text-gray-500">Logo du partenaire</span></div>}
+                    <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, { folder: IMAGE_FOLDERS.partners, setValue: setPLogo, setPreview: setPLogoPreview, setUploading: setIsUploadingPartner })} />
                   </label>
-                  <Button className="w-full" onClick={handleAddPartner} disabled={!pName || !pLogo}>Ajouter Partenaire</Button>
+                  <Button className="w-full" onClick={handleAddPartner} disabled={!pName || !pLogo || isUploadingPartner}>{isUploadingPartner ? 'Upload en cours...' : 'Ajouter Partenaire'}</Button>
                </div>
                <div className="space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-6">Liste des Partenaires</h3>
@@ -311,10 +380,10 @@ const Admin: React.FC = () => {
                          <input value={vtName} onChange={e => setVtName(e.target.value)} placeholder="Nom de l'équipe" className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus:border-nova-violet text-sm font-bold" />
                          <input value={vtMembers} onChange={e => setVtMembers(e.target.value)} placeholder="Membres (ex: Jean & Marc)" className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus:border-nova-violet text-sm font-bold" />
                          <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-white/10 rounded-2xl cursor-pointer hover:bg-white/5 transition-all overflow-hidden">
-                            {vtImage ? <img src={vtImage} className="w-full h-full object-cover" /> : <div className="text-center"><ImageIcon className="mx-auto mb-2 text-gray-500" /> <span className="text-[10px] uppercase font-black text-gray-500">Photo du Binôme</span></div>}
-                            <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setVtImage)} />
+                            {(vtImagePreview || vtImage) ? <img src={vtImagePreview || vtImage} className="w-full h-full object-cover" /> : <div className="text-center"><ImageIcon className="mx-auto mb-2 text-gray-500" /> <span className="text-[10px] uppercase font-black text-gray-500">Photo du Binôme</span></div>}
+                            <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, { folder: IMAGE_FOLDERS.voting, setValue: setVtImage, setPreview: setVtImagePreview, setUploading: setIsUploadingVoting })} />
                          </label>
-                         <Button className="w-full" onClick={handleAddVotingTeam} disabled={!vtName || !vtImage}>Publier au Scrutin {vtType === 'public' ? 'Public' : 'Gagnants'}</Button>
+                         <Button className="w-full" onClick={handleAddVotingTeam} disabled={!vtName || !vtImage || isUploadingVoting}>{isUploadingVoting ? 'Upload en cours...' : `Publier au Scrutin ${vtType === 'public' ? 'Public' : 'Gagnants'}`}</Button>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -364,10 +433,10 @@ const Admin: React.FC = () => {
                     <option value="completed" className="bg-nova-black">Terminé</option>
                   </select>
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-white/10 rounded-2xl cursor-pointer hover:bg-white/5 transition-all">
-                    {lpImage ? <img src={lpImage} className="h-24 w-full object-cover rounded-xl" /> : <div className="text-center"><ImageIcon className="mx-auto mb-2 text-gray-500" /> <span className="text-[10px] uppercase font-black text-gray-500">Image de la phase</span></div>}
-                    <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, setLpImage)} />
+                    {(lpImagePreview || lpImage) ? <img src={lpImagePreview || lpImage} className="h-24 w-full object-cover rounded-xl" /> : <div className="text-center"><ImageIcon className="mx-auto mb-2 text-gray-500" /> <span className="text-[10px] uppercase font-black text-gray-500">Image de la phase</span></div>}
+                    <input type="file" className="hidden" accept="image/*" onChange={e => handleImageUpload(e, { folder: IMAGE_FOLDERS.live, setValue: setLpImage, setPreview: setLpImagePreview, setUploading: setIsUploadingLive })} />
                   </label>
-                  <Button className="w-full" onClick={handleAddLivePhase} disabled={!lpTitle || !lpImage}>Publier Phase Live</Button>
+                  <Button className="w-full" onClick={handleAddLivePhase} disabled={!lpTitle || !lpImage || isUploadingLive}>{isUploadingLive ? 'Upload en cours...' : 'Publier Phase Live'}</Button>
                </div>
                <div className="space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-6">Phases Actives</h3>

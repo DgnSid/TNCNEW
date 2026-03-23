@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, ArrowDown, Sparkles, ChevronRight, X, TrendingUp, Crown, Clock, CheckCircle2, CreditCard, Smartphone } from 'lucide-react';
@@ -72,8 +72,6 @@ const Voting: React.FC = () => {
   // États pour KkiaPay
   const [isProcessing, setIsProcessing] = useState(false);
   const [kkiapayLoaded, setKkiapayLoaded] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [paymentData, setPaymentData] = useState<{teamName: string, voteCount: number} | null>(null);
 
   // Prix par vote
   const VOTE_PRICE = 50; // 50 FCFA par vote
@@ -110,44 +108,6 @@ const Voting: React.FC = () => {
     };
   }, []);
 
-  // Gestionnaire de succès de paiement
-  const handlePaymentSuccess = useCallback(async (paymentId: string) => {
-    try {
-      const paymentDataStored = JSON.parse(localStorage.getItem(paymentId) || '{}');
-      if (!paymentDataStored?.teamId || !paymentDataStored?.voteCount) {
-        throw new Error('Données de paiement manquantes');
-      }
-
-      // Enregistrer le vote après paiement réussi
-      const ok = await incrementVotingTeamVotes(paymentDataStored.teamId, paymentDataStored.voteCount);
-      if (!ok) {
-        throw new Error('Erreur lors de l\'enregistrement du vote');
-      }
-
-      // Recharger immédiatement les équipes pour voir les votes mis à jour
-      const parsed = await getVotingTeams();
-      const filtered = parsed.filter(t => t.type === 'public');
-      const sorted = filtered.sort((a, b) => b.votes - a.votes);
-      setTeams(sorted);
-
-      // Stocker les données pour le popup de remerciement
-      setPaymentData({
-        teamName: paymentDataStored.teamName,
-        voteCount: paymentDataStored.voteCount
-      });
-
-      setPaymentSuccess(true);
-      localStorage.removeItem(paymentId);
-
-      // Fermer le modal de sélection d'équipe
-      setSelectedTeam(null);
-
-    } catch (error) {
-      console.error('Erreur:', error);
-      alert(`Paiement réussi mais erreur lors de l'enregistrement: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
-    }
-  }, []);
-
   // Vérifier les paiements au chargement
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -159,13 +119,9 @@ const Voting: React.FC = () => {
     }
 
     if (paymentId) {
-      const paymentData = JSON.parse(localStorage.getItem(paymentId) || '{}');
-
-      if (paymentData) {
-        handlePaymentSuccess(paymentId);
-      }
+      window.location.href = `/#/payment-callback?payment=${paymentId}`;
     }
-  }, [handlePaymentSuccess]);
+  }, []);
 
   const handleVote = async () => {
     if (!selectedTeam || voteCount < 1) return;
@@ -193,7 +149,7 @@ const Voting: React.FC = () => {
     if (typeof window !== 'undefined' && (window as any).openKkiapayWidget) {
       (window as any).openKkiapayWidget({
         amount,
-        key: "260b3f463adaac920f28acc20b34539ec90a9bec", // À remplacer par votre clé de production
+        key: "260b3f463adaac920f28acc20b34539ec90a9bec", // À remplacer par votre clé de production c95afa00ae6411efb1b5cb2c92e1fa7d 
         position: "center",
         sandbox: false, // Mettre à false pour la production
         callback: `${window.location.origin}/#/payment-callback?payment=${paymentId}`,
@@ -391,56 +347,6 @@ const Voting: React.FC = () => {
             )}
           </AnimatePresence>
 
-          <AnimatePresence>
-            {paymentSuccess && paymentData && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
-                onClick={() => {
-                  setPaymentSuccess(false);
-                  setPaymentData(null);
-                  window.location.href = '/#/vote';
-                }}
-              >
-                <motion.div
-                  initial={{ scale: 0.92, y: 20, opacity: 0 }}
-                  animate={{ scale: 1, y: 0, opacity: 1 }}
-                  exit={{ scale: 0.95, y: 10, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="w-full max-w-lg bg-white rounded-[2.5rem] p-8 md:p-10 text-center shadow-2xl border border-gray-100"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="w-20 h-20 rounded-2xl overflow-hidden mx-auto mb-6 border-4 border-nova-violet shadow-xl bg-nova-violet/10 flex items-center justify-center">
-                    <CheckCircle2 size={40} className="text-nova-violet" />
-                  </div>
-                  <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-nova-black mb-4">
-                    Paiement Réussi !
-                  </h3>
-                  <p className="text-gray-600 font-medium mb-6">
-                    Merci d'avoir soutenu <span className="font-black text-nova-black">{paymentData.teamName}</span> avec <span className="font-black text-nova-black">{paymentData.voteCount}</span> vote{paymentData.voteCount > 1 ? 's' : ''}.
-                  </p>
-                  <div className="bg-nova-violet/5 p-4 rounded-2xl border border-nova-violet/10 mb-8">
-                    <p className="text-sm text-nova-violet font-bold">
-                      Vos votes ont été ajoutés au compteur !
-                    </p>
-                  </div>
-                  <Button 
-                    size="lg" 
-                    className="w-full" 
-                    onClick={() => {
-                      setPaymentSuccess(false);
-                      setPaymentData(null);
-                      window.location.href = '/#/vote';
-                    }}
-                  >
-                    Continuer vers les Votes
-                  </Button>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           <AnimatePresence>
             {successVotes !== null && (
