@@ -76,7 +76,7 @@ const Voting: React.FC = () => {
   const [paymentData, setPaymentData] = useState<{teamName: string, voteCount: number} | null>(null);
 
   // Prix par vote
-  const VOTE_PRICE = 1000; // 1000 FCFA par vote
+  const VOTE_PRICE = 50; // 50 FCFA par vote
 
   useEffect(() => {
     const load = async () => {
