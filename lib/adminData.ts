@@ -268,23 +268,13 @@ export const addVotingTeam = async (payload: Omit<VotingTeam, 'id'>): Promise<bo
 export const incrementVotingTeamVotes = async (id: string, increment: number): Promise<boolean> => {
   if (!isSupabaseConfigured || !supabase) return false;
 
-  const { data: current, error: getError } = await supabase
-    .from('voting_teams')
-    .select('votes')
-    .eq('id', id)
-    .single();
-  if (getError || !current) {
-    logError('incrementVotingTeamVotes:getCurrent', getError);
-    return false;
-  }
+  const { error } = await supabase.rpc('increment_voting_team_votes', {
+    p_id: id,
+    p_increment: increment,
+  });
 
-  const { error: updateError } = await supabase
-    .from('voting_teams')
-    .update({ votes: (current.votes || 0) + increment })
-    .eq('id', id);
-
-  if (updateError) {
-    logError('incrementVotingTeamVotes:update', updateError);
+  if (error) {
+    logError('incrementVotingTeamVotes:rpc', error);
     return false;
   }
   return true;
