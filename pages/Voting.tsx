@@ -304,27 +304,7 @@ const Voting: React.FC = () => {
                       <span className="text-3xl md:text-4xl font-black text-nova-black">{(voteCount * VOTE_PRICE).toLocaleString()} FCFA</span>
                     </div>
 
-                    {/* Méthodes de paiement */}
-                    <div className="bg-white border border-gray-100 rounded-2xl p-6">
-                      <h3 className="text-lg font-black text-nova-black uppercase tracking-tighter mb-4 text-center">Méthodes de Paiement</h3>
-                      <div className="flex justify-center items-center gap-8 mb-4">
-                        <div className="flex flex-col items-center">
-                          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-2">
-                            <Smartphone size={24} className="text-orange-600" />
-                          </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-600">Mobile Money</span>
-                        </div>
-                        <div className="flex flex-col items-center">
-                          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                            <CreditCard size={24} className="text-blue-600" />
-                          </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-600">Carte Bancaire</span>
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-gray-500 text-center">
-                        Paiement sécurisé via KkiaPay
-                      </p>
-                    </div>
+        
 
                     {!kkiapayLoaded && (
                       <div className="text-center py-4 text-orange-500 text-sm">
