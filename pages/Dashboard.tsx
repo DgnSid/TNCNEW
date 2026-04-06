@@ -178,56 +178,111 @@ const Dashboard: React.FC = () => {
             >
               {activeTab === 'overview' && (
                 <>
+                
+
                   <section className="bg-white rounded-[2.5rem] md:rounded-[4rem] border border-gray-100 shadow-sm p-8 md:p-16">
                     <div className="flex items-center gap-4 mb-10">
-                       <span className="text-[10px] font-black uppercase tracking-[0.4em] text-nova-violet">Information Institutionnelle</span>
-                       <div className="h-px flex-grow bg-gray-50" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.4em] text-nova-violet">Fiche Technique</span>
+                      <div className="h-px flex-grow bg-gray-50" />
                     </div>
-                    
-                    <div className="prose prose-xl max-w-none text-nova-black">
-                      <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter mb-10 leading-[1.1]">
-                        Welcome back <span className="text-nova-violet">{teamName}</span> et félicitations pour votre qualification aux prochaines étapes.
-                      </h2>
-                      
-                      <div className="space-y-6 md:space-y-8 text-gray-600 font-medium leading-relaxed text-sm md:text-lg">
-                        <p>
-                          Vous venez de franchir avec succès la première étape dans cette aventure. Pour la suite des étapes du concours rejoignez le groupe whatsapp qui a été créé pour vous fournir les informations nécessaires.
-                        </p>
-                        
-                      </div>
-                    </div>
-                  </section>
 
-                  <section className="bg-gradient-to-r from-[#0b1f16] via-[#103b2a] to-[#0b1f16] text-white rounded-[2.5rem] md:rounded-[4rem] border border-[#25D366]/30 shadow-2xl p-8 md:p-14">
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-10">
-                      <div className="max-w-3xl">
-                        <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-[#25D366]/15 border border-[#25D366]/40 mb-8">
-                          <MessageCircle size={18} className="text-[#25D366]" />
-                          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#9BF2BE]">Canal Officiel WhatsApp</span>
+                    <div className="grid lg:grid-cols-[1.3fr,0.9fr] gap-10 lg:gap-14 items-start">
+                      <div>
+                        <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-nova-violet/10 border border-nova-violet/20 mb-6">
+                          <FileText size={16} className="text-nova-violet" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-nova-violet">Document Officiel</span>
                         </div>
-                        <h3 className="text-3xl md:text-5xl font-black uppercase tracking-tight leading-tight mb-6">
-                          Rejoignez Le Groupe Privé WhatsApp
+
+                        <h3 className="text-2xl md:text-4xl font-black uppercase tracking-tight leading-tight text-nova-black mb-6">
+                          Chers candidats, le moment est arrivé !
                         </h3>
-                        <p className="text-white/75 text-sm md:text-lg font-medium leading-relaxed">
-                          C'est le canal principal pour les annonces, rappels dela suite des étapes et informations de la compétition. Rejoignez-le maintenant pour ne rien manquer.
-                        </p>
+
+                        <div className="space-y-6 text-gray-600 text-sm md:text-lg font-medium leading-relaxed">
+                          <p>
+                            La fiche technique du concours Tech Nova Challenge est désormais disponible. Merci de respecter
+                            scrupuleusement les règles et les critères établis. Soyez précis, clairs et bien structurés dans
+                            vos rédactions afin de mettre en valeur la qualité de vos projets.
+                          </p>
+
+                          <div className="p-5 md:p-6 rounded-2xl bg-nova-violet/5 border border-nova-violet/10">
+                            <div className="flex items-center gap-3 mb-3">
+                              <AlertTriangle size={18} className="text-nova-violet" />
+                              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-nova-violet">Date Limite</span>
+                            </div>
+                            <p className="text-nova-black font-bold text-base md:text-xl">
+                              24/04/2026 — Soumission de la fiche technique et envoi de la vidéo.
+                            </p>
+                            <p className="text-xs md:text-sm text-gray-500 mt-2">
+                              Votre vidéo de présentation doit être envoyée au plus tard à cette même date.
+                            </p>
+                          </div>
+
+                          <div className="space-y-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.35em] text-gray-400">Consignes À Suivre</p>
+                            <ul className="space-y-3 text-gray-600 text-sm md:text-base">
+                              <li className="flex items-start gap-3">
+                                <span className="mt-1 h-2.5 w-2.5 rounded-full bg-nova-red/80" />
+                                Toute double soumission entraînera une disqualification automatique.
+                              </li>
+                              <li className="flex items-start gap-3">
+                                <span className="mt-1 h-2.5 w-2.5 rounded-full bg-nova-red/80" />
+                                La durée de la vidéo ne doit pas excéder 5 minutes.
+                              </li>
+                            </ul>
+                          </div>
+
+                          <div className="p-5 md:p-6 rounded-2xl bg-gray-50 border border-gray-100">
+                            <div className="flex items-center gap-3 mb-2">
+                              <ExternalLink size={16} className="text-nova-black" />
+                              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Modalité De Soumission</span>
+                            </div>
+                            <p className="text-gray-600 text-sm md:text-base leading-relaxed">
+                              À la fin, vous trouverez un lien dans vos comptes. Utilisez le bouton ci-contre pour soumettre votre
+                              fiche technique ainsi que votre vidéo directement sur la plateforme.
+                            </p>
+                          </div>
+
+                          <p className="text-gray-600 text-sm md:text-base">
+                            Merci de respecter strictement ces directives afin d’éviter toute sanction. Bonne préparation à tous.
+                          </p>
+                          <p className="text-xs md:text-sm font-bold text-nova-violet">Le Comité Tech Nova Challenge</p>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-3 self-start md:self-center px-5 py-3 rounded-2xl bg-white/5 border border-white/10">
-                        <Users size={18} className="text-[#25D366]" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Communauté Participants</span>
-                      </div>
-                    </div>
+                      <div className="bg-[#F7F3FF] border border-nova-violet/20 rounded-[2rem] p-6 md:p-8 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-11 h-11 rounded-2xl bg-nova-violet text-white flex items-center justify-center shadow-lg shadow-nova-violet/20">
+                            <Download size={18} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.35em] text-nova-violet">Actions</p>
+                            <p className="text-xs md:text-sm text-gray-500 font-medium">Télécharger et soumettre</p>
+                          </div>
+                        </div>
 
-                    <div className="mt-10 md:mt-12">
-                      <Button
-                        size="lg"
-                        className="w-full md:w-auto !bg-[#25D366] !text-[#072313] hover:!bg-[#1ebe5d] !px-10"
-                        onClick={() => window.open('https://chat.whatsapp.com/DXut6Ml1gnVBGKvTQztB76?mode=gi_t')}
-                      >
-                        <MessageCircle size={18} className="mr-3" />
-                        Rejoindre le groupe WhatsApp
-                      </Button>
+                        <div className="space-y-4">
+                          <a
+                            href="https://drive.google.com/uc?export=download&id=1w94-KYUcUfuvifEeVoShJEAtnS1eTzjc"
+                            download
+                            className="w-full inline-flex items-center justify-center gap-3 rounded-full bg-nova-violet text-white font-black text-[10px] md:text-xs uppercase tracking-[0.25em] px-6 py-4 shadow-lg shadow-nova-violet/30 hover:shadow-nova-violet/40 transition-all"
+                          >
+                            <FileText size={16} />
+                            Télécharger La Fiche Technique
+                          </a>
+
+                          <button
+                            onClick={() => window.open('https://forms.gle/YRauKtJMGkxuGaaX6', '_blank', 'noreferrer')}
+                            className="w-full inline-flex items-center justify-center gap-3 rounded-full bg-white border border-nova-violet/20 text-nova-violet font-black text-[10px] md:text-xs uppercase tracking-[0.25em] px-6 py-4 hover:bg-nova-violet/5 transition-all"
+                          >
+                            <Upload size={16} />
+                            Soumettre La Fiche Technique
+                          </button>
+                        </div>
+
+                        <div className="mt-6 p-4 rounded-2xl bg-white/70 border border-white/70 text-xs text-gray-500 leading-relaxed">
+                          Pensez à préparer la fiche et la vidéo avant de cliquer sur “Soumettre”. Un seul envoi est autorisé.
+                        </div>
+                      </div>
                     </div>
                   </section>
                 </>
