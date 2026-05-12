@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, ArrowDown, Sparkles, ChevronRight, X, TrendingUp, Crown, Clock, CheckCircle2, CreditCard, Smartphone } from 'lucide-react';
@@ -123,6 +123,29 @@ const Voting: React.FC = () => {
     }
   }, []);
 
+  const successListenerRef = useRef<((r: any) => void) | null>(null);
+
+  const processConfirmedPayment = async (paymentId: string): Promise<boolean> => {
+    const raw = localStorage.getItem(paymentId);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (data.processed) return true;
+
+    // Marquer le paiement comme confirmé par KKiaPay
+    localStorage.setItem(paymentId, JSON.stringify({ ...data, paymentConfirmed: true }));
+
+    // Jusqu'à 3 tentatives avec délai croissant
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 1000 * attempt));
+      const ok = await incrementVotingTeamVotes(data.teamId, data.voteCount);
+      if (ok) {
+        localStorage.setItem(paymentId, JSON.stringify({ ...data, paymentConfirmed: true, processed: true }));
+        return true;
+      }
+    }
+    return false;
+  };
+
   const handleVote = async () => {
     if (!selectedTeam || voteCount < 1) return;
 
@@ -136,22 +159,42 @@ const Voting: React.FC = () => {
     const paymentId = `vote_${Date.now()}`;
     const amount = voteCount * VOTE_PRICE;
 
-    // Stocker les données de paiement
     localStorage.setItem(paymentId, JSON.stringify({
       teamId: selectedTeam.id,
       teamName: selectedTeam.name,
       voteCount,
       amount,
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      redirectUrl: '/#/vote',
+      paymentConfirmed: false,
+      processed: false,
     }));
 
-    // Ouvrir le widget KkiaPay
+    // Retirer l'ancien listener s'il y en avait un
+    if (successListenerRef.current && (window as any).removeSuccessListener) {
+      (window as any).removeSuccessListener(successListenerRef.current);
+    }
+
+    // Listener direct KKiaPay — 1ère ligne de défense
+    const onSuccess = async (response: any) => {
+      const pId: string = (response?.data as string) || paymentId;
+      await processConfirmedPayment(pId);
+      if ((window as any).removeSuccessListener) {
+        (window as any).removeSuccessListener(onSuccess);
+      }
+      successListenerRef.current = null;
+    };
+    successListenerRef.current = onSuccess;
+    if ((window as any).addSuccessListener) {
+      (window as any).addSuccessListener(onSuccess);
+    }
+
     if (typeof window !== 'undefined' && (window as any).openKkiapayWidget) {
       (window as any).openKkiapayWidget({
         amount,
-        key: "260b3f463adaac920f28acc20b34539ec90a9bec", // À remplacer par votre clé de production c95afa00ae6411efb1b5cb2c92e1fa7d 
+        key: "260b3f463adaac920f28acc20b34539ec90a9bec",
         position: "center",
-        sandbox: false, // Mettre à false pour la production
+        sandbox: false,
         callback: `${window.location.origin}/#/payment-callback?payment=${paymentId}`,
         theme: "orange",
         data: paymentId,

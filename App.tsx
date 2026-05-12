@@ -20,7 +20,7 @@ import Voting from './pages/Voting';
 import WinnersVoting from './pages/WinnersVoting';
 import Login from './pages/Login';
 import PaymentCallback from './pages/PaymentCallback';
-import { getSiteConfig } from './lib/adminData';
+import { getSiteConfig, incrementVotingTeamVotes } from './lib/adminData';
 
 const PageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <motion.div
@@ -39,6 +39,31 @@ const App: React.FC = () => {
     hiddenPages: [] as string[],
     isReorganized: false
   });
+
+  // Recovery : rattrape les paiements confirmés dont l'incrément Supabase a échoué
+  useEffect(() => {
+    const recoverPendingVotes = async () => {
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('vote_'));
+      for (const key of keys) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || '{}');
+          if (data.paymentConfirmed && !data.processed) {
+            const ok = await incrementVotingTeamVotes(data.teamId, data.voteCount);
+            if (ok) {
+              localStorage.setItem(key, JSON.stringify({ ...data, processed: true }));
+              setTimeout(() => localStorage.removeItem(key), 3000);
+            }
+          } else if (data.processed) {
+            localStorage.removeItem(key);
+          }
+        } catch {
+          // Entrée corrompue, on nettoie
+          localStorage.removeItem(key);
+        }
+      }
+    };
+    void recoverPendingVotes();
+  }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });

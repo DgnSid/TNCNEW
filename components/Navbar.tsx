@@ -62,7 +62,7 @@ const Navbar: React.FC = () => {
     { name: 'Live Étapes', path: '/etapes-en-cours' },
     { name: 'Déroulement', path: '/deroulement' },
     { name: 'Vote de Préselection', path: '/vote' },
-    { name: 'Vote Gagnants', path: '/vote-gagnants' },
+    { name: 'Vote Finale', path: '/vote-gagnants' },
     { name: 'Lauréats 2025', path: '/laureats-2025' },
     { name: 'Équipe 2026', path: '/equipe-2026' },
     { name: 'Galerie', path: '/galerie' },

@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { Trophy, Activity, Crown, X, ChevronRight, ArrowDown, Clock, ShieldCheck, Zap, Star, Share2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trophy, ArrowDown, ChevronRight, X, Crown, Clock, CheckCircle2 } from 'lucide-react';
 import Button from '../components/Button';
 import { getSiteConfig, getVotingTeams, incrementVotingTeamVotes } from '../lib/adminData';
 
@@ -14,57 +15,64 @@ interface VotingTeam {
   type: 'public' | 'winners';
 }
 
-const CountdownItem = ({ label, value }: { label: string, value: number }) => (
-  <div className="flex flex-col items-center">
-    <motion.div 
-      key={value}
-      initial={{ y: 20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      className="text-5xl md:text-8xl font-black text-white tracking-tighter tabular-nums mb-2"
-    >
-      {value.toString().padStart(2, '0')}
-    </motion.div>
-    <div className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.5em] text-nova-violet/60">
-      {label}
-    </div>
-  </div>
-);
+const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
-const Ticker = () => (
-  <div className="fixed top-[120px] left-0 w-full overflow-hidden bg-nova-violet/5 border-y border-white/5 py-3 z-[100] backdrop-blur-md">
-    <motion.div 
-      animate={{ x: ["0%", "-50%"] }}
-      transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-      className="flex whitespace-nowrap gap-20 items-center"
-    >
-      {[1, 2, 3, 4, 5].map(i => (
-        <div key={i} className="flex items-center gap-6">
-          <span className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-2">
-            <Activity size={12} className="text-nova-violet" /> NOUVEAU VOTE ENREGISTRÉ POUR L'ÉQUIPE ALPHA
-          </span>
-          <span className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-2">
-            <Zap size={12} className="text-nova-red" /> SCRUTIN SÉCURISÉ PAR PROTOCOLE NOVA-V3
-          </span>
-          <span className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-2">
-            <ShieldCheck size={12} className="text-green-500" /> VÉRIFICATION DE L'INTÉGRITÉ EN COURS
-          </span>
+  useEffect(() => {
+    if (!targetDate) return;
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const distance = new Date(targetDate).getTime() - now;
+      if (distance < 0) {
+        clearInterval(interval);
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      } else {
+        setTimeLeft({
+          days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+          minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+          seconds: Math.floor((distance % (1000 * 60)) / 1000),
+        });
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [targetDate]);
+
+  if (!targetDate) return null;
+
+  return (
+    <div className="flex justify-center gap-4 md:gap-10">
+      {[
+        { label: 'Jours', val: timeLeft.days },
+        { label: 'Heures', val: timeLeft.hours },
+        { label: 'Minutes', val: timeLeft.minutes },
+        { label: 'Secondes', val: timeLeft.seconds },
+      ].map((item, i) => (
+        <div key={i} className="text-center group">
+          <div className="text-4xl md:text-7xl font-black text-white tracking-tighter tabular-nums mb-1 md:mb-2 group-hover:text-nova-violet transition-colors">
+            {item.val.toString().padStart(2, '0')}
+          </div>
+          <div className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-white/40 group-hover:text-nova-violet/60 transition-colors">
+            {item.label}
+          </div>
         </div>
       ))}
-    </motion.div>
-  </div>
-);
+    </div>
+  );
+};
 
 const WinnersVoting: React.FC = () => {
   const [teams, setTeams] = useState<VotingTeam[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<VotingTeam | null>(null);
   const [voteCount, setVoteCount] = useState(1);
+  const [successVotes, setSuccessVotes] = useState<number | null>(null);
   const [targetDate, setTargetDate] = useState('');
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const LIMIT = 2000;
+  const LIMIT = 5000;
 
-  const containerRef = useRef(null);
-  const { scrollYProgress } = useScroll({ target: containerRef });
-  const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [kkiapayLoaded, setKkiapayLoaded] = useState(false);
+
+  const VOTE_PRICE = 50;
 
   useEffect(() => {
     const load = async () => {
@@ -79,262 +87,348 @@ const WinnersVoting: React.FC = () => {
     void load();
     const interval = setInterval(() => {
       void load();
-    }, 3000);
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    if (!targetDate) return;
-    const timer = setInterval(() => {
-      const distance = new Date(targetDate).getTime() - new Date().getTime();
-      if (distance < 0) {
-        clearInterval(timer);
-      } else {
-        setTimeLeft({
-          days: Math.floor(distance / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-          minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
-          seconds: Math.floor((distance % (1000 * 60)) / 1000),
-        });
+    const script = document.createElement('script');
+    script.src = "https://cdn.kkiapay.me/k.js";
+    script.async = true;
+    script.onload = () => setKkiapayLoaded(true);
+    document.head.appendChild(script);
+
+    return () => {
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
       }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [targetDate]);
+    };
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    let paymentId = params.get('payment');
+
+    if (!paymentId && window.location.hash) {
+      const hashQuery = window.location.hash.split('?')[1] || '';
+      paymentId = new URLSearchParams(hashQuery).get('payment');
+    }
+
+    if (paymentId) {
+      window.location.href = `/#/payment-callback?payment=${paymentId}`;
+    }
+  }, []);
+
+  const successListenerRef = useRef<((r: any) => void) | null>(null);
+
+  const processConfirmedPayment = async (paymentId: string): Promise<boolean> => {
+    const raw = localStorage.getItem(paymentId);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (data.processed) return true;
+
+    localStorage.setItem(paymentId, JSON.stringify({ ...data, paymentConfirmed: true }));
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 1000 * attempt));
+      const ok = await incrementVotingTeamVotes(data.teamId, data.voteCount);
+      if (ok) {
+        localStorage.setItem(paymentId, JSON.stringify({ ...data, paymentConfirmed: true, processed: true }));
+        return true;
+      }
+    }
+    return false;
+  };
 
   const handleVote = async () => {
-    if (!selectedTeam) return;
-    const ok = await incrementVotingTeamVotes(selectedTeam.id, voteCount);
-    if (!ok) {
-      alert("Impossible d'enregistrer le vote pour le moment.");
+    if (!selectedTeam || voteCount < 1) return;
+
+    if (!kkiapayLoaded) {
+      alert("Le système de paiement est en cours de chargement...");
       return;
     }
-    setSelectedTeam(null);
-    setVoteCount(1);
+
+    setIsProcessing(true);
+
+    const paymentId = `vote_${Date.now()}`;
+    const amount = voteCount * VOTE_PRICE;
+
+    localStorage.setItem(paymentId, JSON.stringify({
+      teamId: selectedTeam.id,
+      teamName: selectedTeam.name,
+      voteCount,
+      amount,
+      date: new Date().toISOString(),
+      redirectUrl: '/#/vote-gagnants',
+      paymentConfirmed: false,
+      processed: false,
+    }));
+
+    if (successListenerRef.current && (window as any).removeSuccessListener) {
+      (window as any).removeSuccessListener(successListenerRef.current);
+    }
+
+    const onSuccess = async (response: any) => {
+      const pId: string = (response?.data as string) || paymentId;
+      await processConfirmedPayment(pId);
+      if ((window as any).removeSuccessListener) {
+        (window as any).removeSuccessListener(onSuccess);
+      }
+      successListenerRef.current = null;
+    };
+    successListenerRef.current = onSuccess;
+    if ((window as any).addSuccessListener) {
+      (window as any).addSuccessListener(onSuccess);
+    }
+
+    if (typeof window !== 'undefined' && (window as any).openKkiapayWidget) {
+      (window as any).openKkiapayWidget({
+        amount,
+        key: "260b3f463adaac920f28acc20b34539ec90a9bec",
+        position: "center",
+        sandbox: false,
+        callback: `${window.location.origin}/#/payment-callback?payment=${paymentId}`,
+        theme: "orange",
+        data: paymentId,
+      });
+    }
+
+    setIsProcessing(false);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value);
+    if (isNaN(val)) setVoteCount(0);
+    else setVoteCount(Math.max(1, val));
   };
 
   return (
-    <div ref={containerRef} className="bg-black min-h-screen pt-48 pb-32 px-6 overflow-hidden relative selection:bg-nova-violet selection:text-white">
-      
-      {/* BACKGROUND ELEMENTS */}
-      <motion.div style={{ y: backgroundY }} className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[60vw] h-[60vw] bg-nova-violet/10 blur-[150px] rounded-full" />
-        <div className="absolute bottom-0 right-1/4 w-[50vw] h-[50vw] bg-nova-red/5 blur-[120px] rounded-full" />
-        <div className="absolute inset-0 grid-blueprint opacity-10" />
-      </motion.div>
-
-      <Ticker />
-
-      <div className="container mx-auto max-w-7xl relative z-10">
-        
-        {/* HERO SECTION */}
-        <header className="text-center mb-40">
-          <motion.div 
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-            className="inline-block p-10 bg-nova-violet/10 border border-white/10 rounded-[4rem] mb-16 shadow-[0_0_100px_rgba(124,58,237,0.2)]"
-          >
-            <Trophy size={80} className="text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]" />
+    <div className="bg-nova-black min-h-screen selection:bg-nova-violet selection:text-white pb-32">
+      {/* HERO */}
+      <section className="relative h-[85vh] flex items-center justify-center bg-black overflow-hidden px-6">
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-1/4 w-[60vw] h-[60vw] bg-nova-violet/10 blur-[150px] rounded-full" />
+          <div className="absolute bottom-0 right-1/4 w-[50vw] h-[50vw] bg-nova-red/5 blur-[120px] rounded-full" />
+        </div>
+        <div className="relative z-10 text-center max-w-5xl">
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1.2 }}>
+            <div className="inline-flex items-center gap-3 px-6 py-3 bg-nova-violet/10 border border-nova-violet/20 rounded-full mb-10">
+              <Trophy size={16} className="text-nova-violet" />
+              <span className="text-nova-violet font-black tracking-[0.6em] uppercase text-[10px]">Scrutin Final — Phase Décisive</span>
+            </div>
+            <h1 className="editorial-title text-[clamp(3rem,12vw,12rem)] text-white leading-[0.8]">
+              VOTE <br /><span className="text-nova-violet italic font-light">finale.</span>
+            </h1>
+            <p className="mt-12 text-xl md:text-3xl text-white/60 font-black uppercase tracking-[0.3em] italic">
+              Désignez les champions du Tech Nova Challenge !
+            </p>
           </motion.div>
-          
-          <h1 className="editorial-title !text-white !text-[clamp(3rem,14vw,14rem)] !leading-[0.75] !tracking-[-0.08em] uppercase mb-12">
-            LE CONCLAVE <br />
-            <span className="text-nova-violet italic font-light lowercase tracking-tighter">des maîtres.</span>
-          </h1>
+        </div>
+        <motion.div animate={{ y: [0, 10, 0] }} transition={{ duration: 2, repeat: Infinity }} className="absolute bottom-12 text-white/20">
+          <ArrowDown size={32} />
+        </motion.div>
+      </section>
 
-          <div className="max-w-4xl mx-auto mt-24">
-             <div className="flex flex-wrap justify-center gap-8 md:gap-20">
-                <CountdownItem label="Jours" value={timeLeft.days} />
-                <CountdownItem label="Heures" value={timeLeft.hours} />
-                <CountdownItem label="Minutes" value={timeLeft.minutes} />
-                <CountdownItem label="Secondes" value={timeLeft.seconds} />
-             </div>
-             <p className="mt-16 text-[10px] font-black uppercase tracking-[0.8em] text-white/30">
-                Fin du vote final dans le compte à rebours ci-dessus
-             </p>
+      {/* COUNTDOWN + CARDS */}
+      <section className="py-24 md:py-48 px-6 bg-nova-black">
+        <div className="container mx-auto max-w-7xl">
+          <div className="mb-32 text-center space-y-16">
+            <div className="inline-flex items-center gap-3 px-6 py-2 bg-nova-violet/10 border border-nova-violet/20 rounded-full text-nova-violet text-[10px] font-black uppercase tracking-widest">
+              <Clock size={14} /> Temps Restant Avant Clôture
+            </div>
+            <CountdownTimer targetDate={targetDate} />
+            <div className="h-px w-24 bg-white/10 mx-auto" />
+            <h2 className="text-2xl md:text-5xl font-black text-white uppercase tracking-tighter">
+              Votez pour votre équipe favorite
+            </h2>
           </div>
-        </header>
 
-        {/* CANDIDATES LIST */}
-        <div className="space-y-16 md:space-y-32">
-          {teams.map((team, i) => (
-            <motion.div
-              key={team.id}
-              initial={{ opacity: 0, x: i % 2 === 0 ? -100 : 100 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: "-10%" }}
-              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-              className="relative group"
-            >
-              {/* Leader Glow */}
-              {i === 0 && (
-                <div className="absolute inset-0 bg-nova-violet/20 blur-[100px] rounded-full opacity-50 group-hover:opacity-100 transition-opacity pointer-events-none" />
-              )}
-
-              <div className="bg-white/[0.03] border border-white/5 backdrop-blur-3xl rounded-[4rem] md:rounded-[6rem] p-8 md:p-20 flex flex-col lg:flex-row items-center gap-12 lg:gap-24 hover:border-white/20 transition-all duration-1000 relative z-10 overflow-hidden">
-                
-                {/* Visual Rank Background */}
-                <div className="absolute top-1/2 left-10 -translate-y-1/2 text-[25vw] font-black text-white/[0.02] pointer-events-none italic select-none">
-                  0{i + 1}
-                </div>
-
-                {/* Team Image Monolith */}
-                <div className="w-full lg:w-[450px] aspect-[4/5] rounded-[3rem] md:rounded-[5rem] overflow-hidden border-2 border-white/10 relative group-hover:border-nova-violet transition-colors duration-1000 shadow-2xl shrink-0">
-                  <motion.img 
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ duration: 2 }}
-                    src={team.image} 
-                    className="w-full h-full object-cover" 
-                    alt={team.name} 
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
-                  
-                  {i === 0 && (
-                    <div className="absolute top-10 left-10 flex items-center gap-3 bg-nova-violet text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-2xl">
-                      <Crown size={14} fill="white" /> Champion
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+            <AnimatePresence mode="popLayout">
+              {teams.map((team, i) => (
+                <motion.div
+                  key={team.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="relative bg-white/[0.04] border border-white/10 rounded-[3rem] overflow-hidden hover:border-nova-violet/40 transition-all duration-700 group flex flex-col h-full backdrop-blur-sm"
+                >
+                  {i === 0 && team.votes > 0 && (
+                    <div className="absolute top-6 left-6 z-20 px-4 py-2 bg-nova-violet text-white text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 shadow-xl border border-white/10">
+                      <Crown size={12} fill="white" /> EN TÊTE
                     </div>
                   )}
-                </div>
-
-                {/* Team Info */}
-                <div className="flex-grow flex flex-col justify-center text-center lg:text-left space-y-10">
-                  <div>
-                    <span className="text-nova-violet font-black uppercase tracking-[0.6em] text-[10px] mb-4 block">Binôme Finaliste</span>
-                    <h2 className="text-4xl md:text-8xl font-black text-white uppercase tracking-tighter leading-[0.8] mb-6">
-                      {team.name}
-                    </h2>
-                    <p className="text-xl md:text-3xl text-white/40 font-light italic font-serif leading-relaxed">
-                      {team.members}
-                    </p>
+                  <div className="relative aspect-[4/5] overflow-hidden">
+                    <img src={team.image} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={team.name} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-nova-black/90 via-transparent to-transparent" />
+                    <div className="absolute bottom-8 left-8 right-8 text-white">
+                      <div className="text-nova-violet font-black text-4xl mb-2 opacity-40 italic">#{i + 1}</div>
+                      <h3 className="text-2xl font-black uppercase tracking-tighter mb-1">{team.name}</h3>
+                      <p className="text-white/40 text-[9px] uppercase font-bold tracking-widest truncate">{team.members}</p>
+                    </div>
                   </div>
-
-                  <div className="space-y-8">
-                     <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-white/20">
-                        <span>Intensité du Vote</span>
-                        <span className="text-white">{Math.round((team.votes / LIMIT) * 100)}% de l'objectif</span>
-                     </div>
-                     <div className="h-2 bg-white/5 rounded-full overflow-hidden relative">
-                        <motion.div 
+                  <div className="p-10 flex-grow flex flex-col justify-between">
+                    <div className="space-y-6 mb-10">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase text-white/30">Progression</span>
+                        <span className="text-[10px] font-black text-white/40">{team.votes.toLocaleString()} / {LIMIT.toLocaleString()}</span>
+                      </div>
+                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                        <motion.div
                           initial={{ width: 0 }}
-                          whileInView={{ width: `${Math.min(100, (team.votes / LIMIT) * 100)}%` }}
-                          transition={{ duration: 2, ease: "easeOut" }}
-                          className={`h-full relative ${i === 0 ? 'bg-nova-violet shadow-[0_0_30px_#7C3AED]' : 'bg-white'}`}
+                          animate={{ width: `${Math.min(100, (team.votes / LIMIT) * 100)}%` }}
+                          className="h-full bg-nova-violet shadow-[0_0_20px_rgba(124,58,237,0.5)]"
                         />
-                     </div>
-                     <div className="flex flex-col sm:flex-row items-center gap-8">
-                        <div className="text-5xl md:text-7xl font-black text-white tracking-tighter tabular-nums">
-                          {team.votes.toLocaleString()} <span className="text-sm font-black text-white/20 tracking-widest">VOIX</span>
-                        </div>
-                        <Button 
-                          variant={i === 0 ? 'accent' : 'outline'} 
-                          size="lg" 
-                          className={`w-full sm:w-auto !py-6 !px-12 ${i !== 0 ? '!border-white/20 !text-white hover:!bg-white hover:!text-black' : ''}`}
-                          onClick={() => setSelectedTeam(team)}
-                        >
-                          DÉPOSER MON VOTE <ChevronRight size={18} className="ml-2" />
-                        </Button>
-                     </div>
+                      </div>
+                      <div className="text-[11px] font-black text-white text-center tracking-[0.2em] bg-white/5 py-3 rounded-2xl border border-white/10 uppercase">
+                        {team.votes.toLocaleString()} votes sur {LIMIT.toLocaleString()}
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full !bg-nova-violet !text-white hover:!opacity-90"
+                      variant="accent"
+                      onClick={() => setSelectedTeam(team)}
+                    >
+                      Voter pour ce Binôme
+                    </Button>
                   </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {teams.length === 0 && (
+            <div className="text-center py-32 text-white/20 font-black uppercase tracking-widest text-sm">
+              Les candidats seront annoncés prochainement.
+            </div>
+          )}
         </div>
-      </div>
+      </section>
 
-      {/* QUANTUM VOTING MODAL */}
-      <AnimatePresence>
-        {selectedTeam && (
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
-            className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/95 backdrop-blur-[100px] p-4 md:p-10"
-            onClick={() => setSelectedTeam(null)}
-          >
-             <motion.div 
-               initial={{ scale: 0.8, y: 100, opacity: 0 }} 
-               animate={{ scale: 1, y: 0, opacity: 1 }} 
-               exit={{ scale: 0.8, y: 100, opacity: 0 }}
-               className="bg-nova-black border border-white/10 w-full max-w-2xl rounded-[4rem] md:rounded-[6rem] p-10 md:p-20 relative shadow-[0_0_150px_rgba(124,58,237,0.3)] overflow-hidden" 
-               onClick={e => e.stopPropagation()}
-             >
-                {/* Modal Glows */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-nova-violet/20 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2" />
-                
-                <button 
-                  onClick={() => setSelectedTeam(null)} 
-                  className="absolute top-10 right-10 text-white/40 hover:text-white transition-colors p-4 hover:bg-white/5 rounded-full"
+      {typeof document !== 'undefined' && createPortal(
+        <>
+          <AnimatePresence>
+            {selectedTeam && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4"
+                onClick={() => setSelectedTeam(null)}
+              >
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="bg-nova-black border border-white/10 w-[min(92vw,42rem)] rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 relative shadow-[0_0_100px_rgba(124,58,237,0.2)] overflow-hidden"
+                  onClick={e => e.stopPropagation()}
                 >
-                  <X size={40} />
-                </button>
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-nova-violet/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
-                <div className="text-center relative z-10 mb-16">
-                   <div className="w-24 h-24 md:w-32 md:h-32 rounded-[2.5rem] overflow-hidden mx-auto mb-10 border-4 border-nova-violet shadow-[0_0_60px_rgba(124,58,237,0.5)]">
-                      <img src={selectedTeam.image} className="w-full h-full object-cover" alt="Focus" />
-                   </div>
-                   <h2 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter leading-none mb-4">
-                     {selectedTeam.name}
-                   </h2>
-                   <p className="text-[10px] text-white/40 uppercase font-black tracking-[0.5em]">Attribution de la puissance finale</p>
-                </div>
+                  <button
+                    onClick={() => setSelectedTeam(null)}
+                    className="absolute top-8 right-8 text-white/30 hover:text-white transition-colors"
+                  >
+                    <X size={32} />
+                  </button>
 
-                <div className="space-y-16 relative z-10">
-                   <div className="flex items-center justify-center gap-6 md:gap-12">
-                      <motion.button 
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => setVoteCount(Math.max(1, voteCount - 1))} 
-                        className="w-16 h-16 md:w-24 md:h-24 rounded-full border border-white/10 flex items-center justify-center text-4xl font-light text-white hover:bg-nova-violet transition-all"
+                  <div className="text-center mb-8 relative z-10">
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden mx-auto mb-6 border-4 border-nova-violet shadow-[0_0_40px_rgba(124,58,237,0.4)]">
+                      <img src={selectedTeam.image} className="w-full h-full object-cover" alt="Selected" />
+                    </div>
+                    <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">{selectedTeam.name}</h2>
+                    <p className="text-[10px] text-white/30 uppercase font-black tracking-widest mt-2">Saisissez le nombre de votes à attribuer</p>
+                  </div>
+
+                  <div className="space-y-8 relative z-10">
+                    <div className="flex items-center justify-center gap-4 md:gap-8 w-full">
+                      <button
+                        onClick={() => setVoteCount(Math.max(1, voteCount - 1))}
+                        className="w-12 h-12 md:w-16 md:h-16 rounded-full border border-white/10 flex items-center justify-center text-3xl font-light text-white hover:bg-nova-violet transition-all"
                       >
                         -
-                      </motion.button>
-                      <input 
-                        type="number" 
-                        value={voteCount} 
-                        onChange={e => setVoteCount(Math.max(1, parseInt(e.target.value) || 0))}
-                        className="text-7xl md:text-[10rem] font-black text-white w-32 md:w-64 text-center bg-transparent border-none focus:outline-none tracking-tighter tabular-nums"
+                      </button>
+                      <input
+                        type="number"
+                        value={voteCount}
+                        onChange={handleInputChange}
+                        className="text-4xl md:text-6xl font-black text-white w-32 md:w-48 text-center bg-transparent border-b-2 border-nova-violet/30 focus:border-nova-violet outline-none py-2 transition-all"
+                        min="1"
                       />
-                      <motion.button 
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => setVoteCount(voteCount + 1)} 
-                        className="w-16 h-16 md:w-24 md:h-24 rounded-full border border-white/10 flex items-center justify-center text-4xl font-light text-white hover:bg-nova-violet transition-all"
+                      <button
+                        onClick={() => setVoteCount(voteCount + 1)}
+                        className="w-12 h-12 md:w-16 md:h-16 rounded-full border border-white/10 flex items-center justify-center text-3xl font-light text-white hover:bg-nova-violet transition-all"
                       >
                         +
-                      </motion.button>
-                   </div>
-
-                   <div className="bg-white/5 p-10 rounded-[3rem] border border-white/10 text-center backdrop-blur-md">
-                      <div className="text-[10px] font-black text-nova-violet uppercase tracking-[0.5em] mb-4">Validation de l'Engagement</div>
-                      <div className="text-4xl md:text-6xl font-black text-white">{(voteCount * 500).toLocaleString()} <span className="text-xl opacity-30">FCFA</span></div>
-                   </div>
-
-                   <div className="flex flex-col gap-6">
-                      <Button className="w-full !py-8 !rounded-[2.5rem] !text-base" size="lg" variant="accent" onClick={handleVote}>
-                        CONFIRMER LA SOUVERAINETÉ <Zap size={20} className="ml-3" />
-                      </Button>
-                      <button 
-                        onClick={() => setSelectedTeam(null)}
-                        className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 hover:text-white transition-colors"
-                      >
-                        Annuler la procédure
                       </button>
-                   </div>
-                </div>
-             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                    </div>
 
-      <footer className="mt-40 pt-20 border-t border-white/5 text-center">
-         <div className="flex justify-center gap-10 mb-12">
-            <Share2 className="text-white/20 hover:text-nova-violet cursor-pointer transition-colors" />
-            <Star className="text-white/20 hover:text-nova-violet cursor-pointer transition-colors" />
-            <Activity className="text-white/20 hover:text-nova-violet cursor-pointer transition-colors" />
-         </div>
-         <p className="text-[10px] font-black tracking-[1.5em] text-white/10 uppercase font-display">
-            TECH NOVA CHALLENGE — L'ULTIME ÉLITE.
-         </p>
-      </footer>
+                    <div className="bg-white/5 p-4 rounded-2xl text-center border border-white/10">
+                      <div className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Prix par vote</div>
+                      <span className="text-2xl font-black text-white">{VOTE_PRICE.toLocaleString()} FCFA</span>
+                    </div>
+
+                    <div className="bg-nova-violet/10 p-6 md:p-8 rounded-[2rem] text-center border border-nova-violet/20">
+                      <div className="text-[10px] font-black text-nova-violet uppercase tracking-widest mb-1">Montant Total</div>
+                      <span className="text-3xl md:text-4xl font-black text-white">{(voteCount * VOTE_PRICE).toLocaleString()} FCFA</span>
+                    </div>
+
+                    {!kkiapayLoaded && (
+                      <div className="text-center py-4 text-orange-400 text-sm font-medium">
+                        Chargement du service de paiement...
+                      </div>
+                    )}
+
+                    <Button
+                      className="w-full py-5 md:py-6"
+                      size="lg"
+                      variant="accent"
+                      onClick={handleVote}
+                      disabled={isProcessing || !kkiapayLoaded}
+                    >
+                      {isProcessing ? 'Traitement en cours...' : `Payer ${(voteCount * VOTE_PRICE).toLocaleString()} FCFA`}
+                      <ChevronRight size={18} className="ml-2" />
+                    </Button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {successVotes !== null && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+                onClick={() => setSuccessVotes(null)}
+              >
+                <motion.div
+                  initial={{ scale: 0.92, y: 20, opacity: 0 }}
+                  animate={{ scale: 1, y: 0, opacity: 1 }}
+                  exit={{ scale: 0.95, y: 10, opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="w-full max-w-lg bg-nova-black border border-white/10 rounded-[2.5rem] p-8 md:p-10 text-center shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <CheckCircle2 size={56} className="mx-auto mb-6 text-green-400" />
+                  <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white mb-4">
+                    Vote Enregistré
+                  </h3>
+                  <p className="text-white/40 font-medium mb-8">
+                    Merci ! Votre soutien de <span className="font-black text-white">{successVotes}</span> vote(s) a bien été pris en compte.
+                  </p>
+                  <Button size="lg" className="w-full" onClick={() => setSuccessVotes(null)}>
+                    Fermer
+                  </Button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>,
+        document.body
+      )}
     </div>
   );
 };
