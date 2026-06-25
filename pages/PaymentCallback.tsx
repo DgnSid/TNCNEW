@@ -79,6 +79,7 @@ const PaymentCallback: React.FC = () => {
       }
     };
 
+
     handlePaymentCallback();
   }, [navigate]);
 
