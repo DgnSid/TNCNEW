@@ -265,12 +265,33 @@ export const addVotingTeam = async (payload: Omit<VotingTeam, 'id'>): Promise<bo
   return true;
 };
 
-export const incrementVotingTeamVotes = async (id: string, increment: number): Promise<boolean> => {
+export const createPendingVoteTransaction = async (
+  paymentId: string,
+  teamId: string,
+  voteCount: number,
+  amount: number
+): Promise<boolean> => {
   if (!isSupabaseConfigured || !supabase) return false;
 
-  const { error } = await supabase.rpc('increment_voting_team_votes', {
-    p_id: id,
-    p_increment: increment,
+  const { error } = await supabase.from('vote_transactions').insert({
+    id: paymentId,
+    team_id: teamId,
+    vote_count: voteCount,
+    amount,
+  });
+
+  if (error) {
+    logError('createPendingVoteTransaction', error);
+    return false;
+  }
+  return true;
+};
+
+export const incrementVotingTeamVotes = async (paymentId: string): Promise<boolean> => {
+  if (!isSupabaseConfigured || !supabase) return false;
+
+  const { error } = await supabase.rpc('confirm_vote_transaction', {
+    p_id: paymentId,
   });
 
   if (error) {

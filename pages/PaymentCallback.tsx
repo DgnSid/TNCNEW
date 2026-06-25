@@ -55,7 +55,7 @@ const PaymentCallback: React.FC = () => {
         let ok = false;
         for (let attempt = 0; attempt < 3 && !ok; attempt++) {
           if (attempt > 0) await new Promise(r => setTimeout(r, 1200 * attempt));
-          ok = await incrementVotingTeamVotes(paymentData.teamId, paymentData.voteCount);
+          ok = await incrementVotingTeamVotes(paymentId);
         }
 
         if (ok) {

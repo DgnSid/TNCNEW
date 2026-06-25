@@ -48,7 +48,7 @@ const App: React.FC = () => {
         try {
           const data = JSON.parse(localStorage.getItem(key) || '{}');
           if (data.paymentConfirmed && !data.processed) {
-            const ok = await incrementVotingTeamVotes(data.teamId, data.voteCount);
+            const ok = await incrementVotingTeamVotes(key);
             if (ok) {
               localStorage.setItem(key, JSON.stringify({ ...data, processed: true }));
               setTimeout(() => localStorage.removeItem(key), 3000);

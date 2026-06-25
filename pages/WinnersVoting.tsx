@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, ArrowDown, ChevronRight, X, Crown, Clock, CheckCircle2 } from 'lucide-react';
 import Button from '../components/Button';
-import { getSiteConfig, getVotingTeams, incrementVotingTeamVotes } from '../lib/adminData';
+import { getSiteConfig, getVotingTeams, incrementVotingTeamVotes, createPendingVoteTransaction } from '../lib/adminData';
 
 interface VotingTeam {
   id: string;
@@ -49,10 +49,10 @@ const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
         { label: 'Secondes', val: timeLeft.seconds },
       ].map((item, i) => (
         <div key={i} className="text-center group">
-          <div className="text-4xl md:text-7xl font-black text-white tracking-tighter tabular-nums mb-1 md:mb-2 group-hover:text-nova-violet transition-colors">
+          <div className="text-4xl md:text-7xl font-black text-nova-black tracking-tighter tabular-nums mb-1 md:mb-2 group-hover:text-nova-violet transition-colors">
             {item.val.toString().padStart(2, '0')}
           </div>
-          <div className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-white/40 group-hover:text-nova-violet/60 transition-colors">
+          <div className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-gray-300 group-hover:text-nova-violet/60 transition-colors">
             {item.label}
           </div>
         </div>
@@ -131,7 +131,7 @@ const WinnersVoting: React.FC = () => {
 
     for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) await new Promise(r => setTimeout(r, 1000 * attempt));
-      const ok = await incrementVotingTeamVotes(data.teamId, data.voteCount);
+      const ok = await incrementVotingTeamVotes(paymentId);
       if (ok) {
         localStorage.setItem(paymentId, JSON.stringify({ ...data, paymentConfirmed: true, processed: true }));
         return true;
@@ -163,6 +163,8 @@ const WinnersVoting: React.FC = () => {
       paymentConfirmed: false,
       processed: false,
     }));
+
+    await createPendingVoteTransaction(paymentId, selectedTeam.id, voteCount, amount);
 
     if (successListenerRef.current && (window as any).removeSuccessListener) {
       (window as any).removeSuccessListener(successListenerRef.current);
@@ -230,15 +232,15 @@ const WinnersVoting: React.FC = () => {
       </section>
 
       {/* COUNTDOWN + CARDS */}
-      <section className="py-24 md:py-48 px-6 bg-nova-black">
+      <section className="py-24 md:py-48 px-6 bg-[#FAFAFB]">
         <div className="container mx-auto max-w-7xl">
           <div className="mb-32 text-center space-y-16">
-            <div className="inline-flex items-center gap-3 px-6 py-2 bg-nova-violet/10 border border-nova-violet/20 rounded-full text-nova-violet text-[10px] font-black uppercase tracking-widest">
+            <div className="inline-flex items-center gap-3 px-6 py-2 bg-nova-violet/5 border border-nova-violet/10 rounded-full text-nova-violet text-[10px] font-black uppercase tracking-widest">
               <Clock size={14} /> Temps Restant Avant Clôture
             </div>
             <CountdownTimer targetDate={targetDate} />
-            <div className="h-px w-24 bg-white/10 mx-auto" />
-            <h2 className="text-2xl md:text-5xl font-black text-white uppercase tracking-tighter">
+            <div className="h-px w-24 bg-gray-100 mx-auto" />
+            <h2 className="text-2xl md:text-5xl font-black text-nova-black uppercase tracking-tighter">
               Votez pour votre équipe favorite
             </h2>
           </div>
@@ -251,7 +253,7 @@ const WinnersVoting: React.FC = () => {
                   layout
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="relative bg-white/[0.04] border border-white/10 rounded-[3rem] overflow-hidden hover:border-nova-violet/40 transition-all duration-700 group flex flex-col h-full backdrop-blur-sm"
+                  className="relative bg-white border border-gray-100 rounded-[3rem] overflow-hidden hover:shadow-2xl transition-all duration-700 group flex flex-col h-full"
                 >
                   {i === 0 && team.votes > 0 && (
                     <div className="absolute top-6 left-6 z-20 px-4 py-2 bg-nova-violet text-white text-[8px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 shadow-xl border border-white/10">
@@ -270,18 +272,17 @@ const WinnersVoting: React.FC = () => {
                   <div className="p-10 flex-grow flex flex-col justify-between">
                     <div className="space-y-6 mb-10">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase text-white/30">Progression</span>
-                        <span className="text-[10px] font-black text-white/40">{team.votes.toLocaleString()} / {LIMIT.toLocaleString()}</span>
+                        <span className="text-[10px] font-black uppercase text-gray-400">Progression</span>
                       </div>
-                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min(100, (team.votes / LIMIT) * 100)}%` }}
                           className="h-full bg-nova-violet shadow-[0_0_20px_rgba(124,58,237,0.5)]"
                         />
                       </div>
-                      <div className="text-[11px] font-black text-white text-center tracking-[0.2em] bg-white/5 py-3 rounded-2xl border border-white/10 uppercase">
-                        {team.votes.toLocaleString()} votes sur {LIMIT.toLocaleString()}
+                      <div className="text-[11px] font-black text-nova-black text-center tracking-[0.2em] bg-gray-50 py-3 rounded-2xl border border-gray-100 uppercase">
+                        {team.votes.toLocaleString()} Votes acquis
                       </div>
                     </div>
                     <Button
@@ -298,7 +299,7 @@ const WinnersVoting: React.FC = () => {
           </div>
 
           {teams.length === 0 && (
-            <div className="text-center py-32 text-white/20 font-black uppercase tracking-widest text-sm">
+            <div className="text-center py-32 text-gray-300 font-black uppercase tracking-widest text-sm">
               Les candidats seront annoncés prochainement.
             </div>
           )}

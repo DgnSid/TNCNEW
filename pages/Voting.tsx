@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, ArrowDown, Sparkles, ChevronRight, X, TrendingUp, Crown, Clock, CheckCircle2, CreditCard, Smartphone } from 'lucide-react';
 import Button from '../components/Button';
-import { getSiteConfig, getVotingTeams, incrementVotingTeamVotes } from '../lib/adminData.ts';
+import { getSiteConfig, getVotingTeams, incrementVotingTeamVotes, createPendingVoteTransaction } from '../lib/adminData.ts';
 
 interface VotingTeam {
   id: string;
@@ -137,7 +137,7 @@ const Voting: React.FC = () => {
     // Jusqu'à 3 tentatives avec délai croissant
     for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) await new Promise(r => setTimeout(r, 1000 * attempt));
-      const ok = await incrementVotingTeamVotes(data.teamId, data.voteCount);
+      const ok = await incrementVotingTeamVotes(paymentId);
       if (ok) {
         localStorage.setItem(paymentId, JSON.stringify({ ...data, paymentConfirmed: true, processed: true }));
         return true;
@@ -169,6 +169,8 @@ const Voting: React.FC = () => {
       paymentConfirmed: false,
       processed: false,
     }));
+
+    await createPendingVoteTransaction(paymentId, selectedTeam.id, voteCount, amount);
 
     // Retirer l'ancien listener s'il y en avait un
     if (successListenerRef.current && (window as any).removeSuccessListener) {
